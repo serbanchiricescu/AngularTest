@@ -1,17 +1,21 @@
 FROM node:14.4-alpine as builder
 
-# copy the package.json to install dependencies
+# Change the dir to the one where we build the angular app
+WORKDIR /app-ui
+
+# Copy the package.json to install dependencies
 COPY package.json package-lock.json ./
 
 # Install the dependencies and make the folder
-RUN npm install && mkdir /app-ui && mv ./node_modules ./app-ui
+RUN npm install
 
-WORKDIR /app-ui
-
+# Copy source files
 COPY . .
 
-# Build the project and copy the files
-RUN npm run ng build -- --deploy-url=/envapp/ --prod
+# Build the project
+# Base href is the url location in the browser, deploy url is the url at
+# which the asset files are served (js, css, etc)
+RUN npm run ng build -- --base-href /appui/ --deploy-url /appui/ --prod
 
 
 FROM nginx:alpine
@@ -20,12 +24,10 @@ FROM nginx:alpine
 
 COPY nginx.conf /etc/nginx/nginx.conf
 
-## Remove default nginx index page
+# Remove default nginx index page
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copy from the stahg 1
-COPY --from=builder /app-ui/dist /usr/share/nginx/html
-
-EXPOSE 4200 80
+# Copy built files from the stage 1
+COPY --from=builder /app-ui/dist/AngularTest /usr/share/nginx/html
 
 ENTRYPOINT ["nginx", "-g", "daemon off;"]
